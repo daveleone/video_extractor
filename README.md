@@ -5,9 +5,9 @@ This script has been developed as part of a university project for UniBA - Unive
 
 - **Python Installation:** Ensure that [Python](https://www.python.org/downloads/) is installed on your system.
 
-- **FFmpeg Installation:**
+- **FFmpeg Installation:** Required if you want to convert the downloaded video to an mp4 or any other extension.
   - **Mac:** You can install FFmpeg using Homebrew with the following command:
-  
+
     ```bash
     brew install ffmpeg
     ```
