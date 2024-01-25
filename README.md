@@ -7,24 +7,24 @@ This script has been developed as part of a university project for UniBA - Unive
 
 - **FFmpeg Installation:**
   - **Mac:** You can install FFmpeg using Homebrew with the following command:
+  
     ```bash
     brew install ffmpeg
     ```
   - **Windows:** Download FFmpeg from the official site [ffmpeg.org](https://ffmpeg.org/download.html) and add it to the system's environment path.
 
-- **Dependencies:** Install the dependencies using the requirements.txt
+- **Dependencies:** Install the dependencies using the requirements.txt:
     ```bash
     pip install -r requirements.txt
     ```
 
 ## Usage
 - **Running the script:** To utilize the script, follow these commands and enter the prompted information:
+
    ```bash
-   git clone https://github.com/daveleone/video_extractor.git
-   ```
-   ```bash
+   git clone https://github.com/daveleone/video_extractor_uniba.git
+
    cd video_extractor
-   ```
-   ```bash
+
    python main.py
    ```
