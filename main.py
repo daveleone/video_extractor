@@ -10,7 +10,7 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sniff, Packet
 from scapy.layers.inet import TCP, UDP, IP
 
-import json, ssl, certifi, traceback
+import json, ssl, certifi, traceback, threading, time, os, subprocess, dearpygui.dearpygui as dpg
 from yt_dlp import YoutubeDL
 from pydub.utils import mediainfo
 from typing import Union, Dict
@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 
 
 YTDL_OPTIONS = {
-    "format": "bestaudio/best",
+    "format": "bestvideo+bestaudio/best",
     "outtmpl": "%(title)s.%(ext)s",
     # 'postprocessors': [
     #     {
@@ -34,9 +34,8 @@ def extract_video(options: dict, url: str) -> str:
             info_dict = ytdl.extract_info(url, download = False)
             file_name = info_dict["title"]
             
-            sniff(iface = "en0", prn = lambda x: packet_handler(x, url, file_name, packet_data), count=1)
-
             ytdl.download([url])
+            sniff(iface = "en0", prn = lambda x: packet_handler(x, url, file_name, packet_data), count=1)
     except Exception as e:
         print(f"Error during download: {e}")
         return None
