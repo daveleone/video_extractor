@@ -10,7 +10,7 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sniff, Packet
 from scapy.layers.inet import TCP, UDP, IP
 
-import openpyxl, json, requests, ssl, certifi
+import json, ssl, certifi, traceback
 from yt_dlp import YoutubeDL
 from pydub.utils import mediainfo
 from typing import Union, Dict
@@ -75,28 +75,36 @@ def packet_handler(packet: Packet, url: str, file_name: str, packet_data: list) 
         "Payload": payload,
     })
 
-def excel_writer(data_frame: DataFrame, sheet_path: str) -> None:
-    with pd.ExcelWriter("packet_information.xlsx", engine = "openpyxl", mode = "a", if_sheet_exists = "overlay") as writer:
-            data_frame.to_excel(writer, sheet_name = "Sheet1", startrow = writer.sheets["Sheet1"].max_row, index = False, header = False)
+    return None
+
+def excel_writer(data_frame: DataFrame, header: bool, **kwargs) -> None:
+    startrow = kwargs.pop("startrow", None)
+    print(startrow)
+    
+    try:
+        with pd.ExcelWriter("packet_information.xlsx", engine="openpyxl", **kwargs) as writer:
+            data_frame.to_excel(writer, sheet_name="Sheet1", startrow = startrow, index=False, header=header)
             worksheet = writer.sheets["Sheet1"]
             for column in worksheet.columns:
                 max_length = max(len(str(cell.value)) for cell in column)
                 worksheet.column_dimensions[column[0].column_letter].width = max_length + 2
 
+            print("Network traffic analyzed and stored!")
+    except Exception as e:
+        print(f"Error during excel writing: {e}")
+        traceback.print_exc()
+    return None
+
 def convert_to_excel(packet: dict) -> None:
     data_frame = pd.DataFrame(packet)
 
     if not pd.io.common.file_exists("packet_information.xlsx"):
-        data_frame.to_excel("packet_information.xlsx", sheet_name = "Sheet1", index = False)
-        print("Network traffic analyzed and stored!")
+        excel_writer(data_frame, True, mode = "w", startrow = 0)
         return None
-
-    try:
-        excel_writer(data_frame, "packet_information.xlsx")
-        print("Network traffic analyzed and stored!")
-    except Exception as e:
-        print(f"Error during excel creation: {e}")
-        return None
+    
+    lastrow = pd.read_excel("packet_information.xlsx", sheet_name="Sheet1").shape[0] + 1
+    excel_writer(data_frame, False, mode = "a", if_sheet_exists = "overlay", startrow = lastrow)
+    return None
 
 def extract_metadata(file_path: str) -> Union[Dict[str, str], None]:
     try:
@@ -122,7 +130,6 @@ def extract_domain_name(url: str) -> str:
     return domain
 
 def extract_certificate(url: str, domain_name: str) -> None:
-    response = requests.get(url)
     try:
         certificate = ssl.get_server_certificate((urlparse(url).hostname, 443), ca_certs=certifi.where())
 
@@ -131,11 +138,11 @@ def extract_certificate(url: str, domain_name: str) -> None:
             pem_file.write(certificate)
 
         print(f"Certificate saved to {output_file}")
+        return None
+
     except Exception as e:
         print(f"Error extracting certificate {e}: ")
         return None
-
-
 
 if __name__ == "__main__":
     packet_data = []
