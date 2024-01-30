@@ -10,37 +10,110 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sniff, Packet
 from scapy.layers.inet import TCP, UDP, IP
 
-import json, ssl, certifi, traceback, threading, time, os, subprocess, dearpygui.dearpygui as dpg
+import json, ssl, certifi, traceback, tkinter, customtkinter, os
 from yt_dlp import YoutubeDL
 from pydub.utils import mediainfo
 from typing import Union, Dict
 from urllib.parse import urlparse
-
+from tkinter import filedialog as fd
 
 YTDL_OPTIONS = {
     "format": "bestvideo+bestaudio/best",
     "outtmpl": "%(title)s.%(ext)s",
-    # 'postprocessors': [
-    #     {
+    # 'postprocessors': [                           # This would be needed if the file downloaded has to be converted to an mp4
+    #     {                                         # other than that webm is just fine and converting does slow down the process
     #         'key': 'FFmpegVideoConvertor',
     #         'preferedformat': 'mp4',
     #     }
     # ],
 }
 
-def extract_video(options: dict, url: str) -> str:
+packet_data = []
+
+class App(customtkinter.CTk):
+    def __init__(self):
+        super().__init__()
+
+        # Window Creation
+        self.title("Video Extractor")
+        self.geometry(f"{600}x{400}")
+        self.resizable(0, 0)
+
+        # 2x2 Grid
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure((0, 1), weight=1)
+
+        # Frame Creation & Position
+        self.frame_1 = customtkinter.CTkFrame(self, corner_radius = 20)
+        self.frame_1.grid(row = 0, column = 0, columnspan = 2, padx = 10, pady = 10, sticky = "nsew")
+        self.frame_2 = customtkinter.CTkFrame(self, corner_radius = 20)
+        self.frame_2.grid(row = 1, column = 0, padx = 10, pady = 10, sticky = "nsew")
+        self.frame_3 = customtkinter.CTkFrame(self, corner_radius = 20)
+        self.frame_3.grid(row = 1, column = 1, padx = 10, pady = 10, sticky = "nsew")
+
+        self.entry_1 = customtkinter.CTkEntry(self.frame_1, placeholder_text = "Insert URL...")
+        self.entry_1.grid(row = 0, column = 0, columnspan = 2, padx = 20, pady = 20, sticky = "nsew")
+
+        self.button_1 = customtkinter.CTkButton(self.frame_1, text = "Download", command = lambda: self.gui_extract_video(packet_data))
+        self.button_1.grid(row = 1, column = 0, padx = 20, pady = 20, sticky = "nw")
+
+        self.button_1 = customtkinter.CTkButton(self.frame_1, text = "Get Network Traffic", command = lambda: self.gui_convert_to_excel(packet_data))
+        self.button_1.grid(row = 1, column = 1, padx = 20, pady = 20, sticky = "ne")
+
+        self.button_2 = customtkinter.CTkButton(self.frame_2, text = "Open file", command = lambda: self.gui_file_browser())
+        self.button_2.grid(row = 0, column = 0, padx = 20, pady = 20, sticky = "e")
+
+        self.button_2 = customtkinter.CTkButton(self.frame_2, text = "Extract Metadata", command = lambda: self.gui_extract_metadata(file_path))
+        self.button_2.grid(row = 1, column = 0, padx = 20, pady = 20, sticky = "e")
+
+        self.button_3 = customtkinter.CTkButton(self.frame_3, text = "Extract Certificate", command = lambda: self.gui_extract_certificate())
+        self.button_3.grid(row = 0, column = 0, padx = 20, pady = 20, sticky = "e")
+
+    def gui_extract_video(self, packet: Packet) -> None:
+        url = self.entry_1.get()
+        extract_video(YTDL_OPTIONS, url, packet)
+
+    def gui_convert_to_excel(self, packet: dict) -> None:
+        if not packet:
+            return
+        convert_to_excel(packet)
+
+    def gui_extract_certificate(self) -> None:
+        url = self.entry_1.get()
+        extract_certificate(url, extract_domain_name(url))
+
+    def gui_file_browser(self) -> None:
+        filetypes = (
+            ('video files', '*.mp4, *.webm'),
+            ('All files', '*.*')
+        )
+
+        file = fd.askopenfile(initialdir = "/", filetypes = filetypes)
+        if file:
+            # probably a better way to do this but i CBA to refactor again
+            global file_path
+            file_path = file.name
+
+    def gui_extract_metadata(self, file_path: str) -> None:
+        print(file_path)
+        metadata = extract_metadata(file_path)
+        convert_metadata_json(video_name, metadata)
+
+def extract_video(options: dict, url: str, packet: Packet) -> str:
     try:
         with YoutubeDL(options) as ytdl:
             info_dict = ytdl.extract_info(url, download = False)
-            file_name = info_dict["title"]
+            # same here 
+            global video_name
+            video_name = info_dict["title"]
             
             ytdl.download([url])
-            sniff(iface = "en0", prn = lambda x: packet_handler(x, url, file_name, packet_data), count=1)
+            sniff(iface = "en0", prn = lambda x: packet_handler(x, url, video_name, packet), count=1)
     except Exception as e:
         print(f"Error during download: {e}")
         return None
     
-    return file_name
+    return video_name
 
 def packet_handler(packet: Packet, url: str, file_name: str, packet_data: list) -> None:
     source_ip, destination_ip, source_port, destination_port, flags = None, None, None, None, None
@@ -143,16 +216,6 @@ def extract_certificate(url: str, domain_name: str) -> None:
         print(f"Error extracting certificate {e}: ")
         return None
 
-if __name__ == "__main__":
-    packet_data = []
-
-    url = input("Enter the URL of the video you want to download: ")
-    video_name = extract_video(YTDL_OPTIONS, url)
-
-    convert_to_excel(packet_data)
-    
-    file_path = input("Enter the path to the video from which you want to extract metadata: ")
-    metadata = extract_metadata(file_path)
-    convert_metadata_json(video_name, metadata)
-
-    extract_certificate(url, extract_domain_name(url))
+if __name__ == '__main__':
+    app = App()
+    app.mainloop()
